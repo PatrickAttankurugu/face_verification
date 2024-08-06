@@ -1,1 +1,64 @@
+# Python-related
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Virtual Environment
 venv/
+env/
+.env
+
+# IDE-related
+.vscode/
+.idea/
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# Project-specific
+*.log
+*.sqlite3
+.pytest_cache/
+
+# OS-related
+.DS_Store
+Thumbs.db
+
+# Dependency management
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Distribution / packaging
+dist/
+build/
+*.egg-info/
+*.egg
+
+# Test coverage
+htmlcov/
+.coverage
+.coverage.*
+.cache
+
+# Temporary files
+*.tmp
+*.bak
+*.swp
+
+# Model files (if you don't want to version control large model files)
+*.h5
+*.pkl
+
+# Image files (if you don't want to version control sample images)
+*.jpg
+*.jpeg
+*.png
+*.gif
+
+# Config files that might contain sensitive information
+config.ini
+secrets.json
+
+# FastAPI specific
+.pytest_cache/

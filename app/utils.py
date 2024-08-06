@@ -1,7 +1,9 @@
-import os
-from fastapi import UploadFile
+import cv2
+import numpy as np
 from deepface import DeepFace
+from fastapi import UploadFile
 from tempfile import NamedTemporaryFile
+import os
 
 async def save_upload_file_temporarily(upload_file: UploadFile) -> str:
     try:
@@ -13,9 +15,9 @@ async def save_upload_file_temporarily(upload_file: UploadFile) -> str:
     except Exception:
         raise Exception("There was an error uploading the file")
 
-def verify_faces(img_path1: str, img_path2: str):
+def verify_faces(img1_path: str, img2_path: str):
     try:
-        result = DeepFace.verify(img_path1, img_path2)
+        result = DeepFace.verify(img1_path, img2_path)
         return {
             "verified": result["verified"],
             "distance": result["distance"],
@@ -25,3 +27,11 @@ def verify_faces(img_path1: str, img_path2: str):
         }
     except Exception as e:
         raise Exception(f"Error during face verification: {str(e)}")
+
+def image_to_bytes(image_path: str) -> bytes:
+    with open(image_path, "rb") as image_file:
+        return image_file.read()
+
+def bytes_to_image(image_bytes: bytes) -> np.ndarray:
+    nparr = np.frombuffer(image_bytes, np.uint8)
+    return cv2.imdecode(nparr, cv2.IMREAD_COLOR)
