@@ -4,6 +4,8 @@ __pycache__/
 *$py.class
 *.so
 
+prompt.txt
+prompt
 # Virtual Environment
 venv/
 env/
