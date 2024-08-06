@@ -1,10 +1,11 @@
-from fastapi import FastAPI, Depends, HTTPException, status, File, UploadFile
+import os
+from fastapi import FastAPI, File, UploadFile, HTTPException, Depends
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
+from tempfile import NamedTemporaryFile
 from . import crud, models, schemas, auth
 from .database import engine, get_db
-from .utils import save_upload_file_temporarily, verify_faces, image_to_bytes, bytes_to_image
-import os
+from .utils import save_upload_file_temporarily, verify_faces
 
 models.Base.metadata.create_all(bind=engine)
 
@@ -22,7 +23,7 @@ async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(
     user = auth.authenticate_user(db, form_data.username, form_data.password)
     if not user:
         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
+            status_code=401,
             detail="Incorrect username or password",
             headers={"WWW-Authenticate": "Bearer"},
         )
@@ -30,31 +31,47 @@ async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(
     return {"access_token": access_token, "token_type": "bearer"}
 
 @app.post("/upload_reference/")
-async def upload_reference(file: UploadFile = File(...), current_user: schemas.User = Depends(auth.get_current_user), db: Session = Depends(get_db)):
+async def upload_reference(
+    file: UploadFile = File(...),
+    current_user: schemas.User = Depends(auth.get_current_user),
+    db: Session = Depends(get_db)
+):
     temp_file = await save_upload_file_temporarily(file)
-    image_data = image_to_bytes(temp_file)
-    crud.save_reference_image(db, current_user.id, image_data)
-    os.remove(temp_file)
-    return {"message": "Reference image uploaded successfully"}
+    try:
+        with open(temp_file, "rb") as image_file:
+            image_data = image_file.read()
+        crud.save_reference_image(db, current_user.id, image_data)
+        return {"message": "Reference image uploaded successfully"}
+    finally:
+        os.remove(temp_file)
 
 @app.post("/verify/", response_model=schemas.VerificationResult)
-async def verify_face(file: UploadFile = File(...), current_user: schemas.User = Depends(auth.get_current_user), db: Session = Depends(get_db)):
+async def verify_face(
+    file: UploadFile = File(...),
+    current_user: schemas.User = Depends(auth.get_current_user),
+    db: Session = Depends(get_db)
+):
     reference_image = crud.get_reference_image(db, current_user.id)
     if not reference_image:
         raise HTTPException(status_code=400, detail="Reference image not found")
     
     temp_file = await save_upload_file_temporarily(file)
-    
-    with NamedTemporaryFile(delete=False, suffix=".jpg") as tmp_ref:
-        tmp_ref.write(reference_image.image_data)
-        tmp_ref_name = tmp_ref.name
+    tmp_ref_name = None
     
     try:
+        with NamedTemporaryFile(delete=False, suffix=".jpg") as tmp_ref:
+            tmp_ref.write(reference_image.image_data)
+            tmp_ref_name = tmp_ref.name
+        
         result = verify_faces(tmp_ref_name, temp_file)
         return result
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Verification failed: {str(e)}")
     finally:
-        os.remove(temp_file)
-        os.remove(tmp_ref_name)
+        if temp_file and os.path.exists(temp_file):
+            os.remove(temp_file)
+        if tmp_ref_name and os.path.exists(tmp_ref_name):
+            os.remove(tmp_ref_name)
 
 @app.get("/")
 async def read_root():
